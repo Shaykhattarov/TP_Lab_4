@@ -1,13 +1,13 @@
-import datetime
+from datetime import date
 
 from flask import render_template, flash, redirect, request, url_for
 from flask_login import login_required, login_user, current_user, logout_user
 
 from app import app, db, os, json, requests
-from app.forms import LoginForm, CreateUserForm, ChangeUserForm, SelectUserForm, CreateNewsForm
-from app.models import User, News
+from app.forms import LoginForm, CreateUserForm, ChangeUserForm, SelectUserForm, CreateNewsForm, ChangeNewsForm, SelectNewsForm
+from app.models import User, News, Category
 from app.yandex_api import YandexAPI as yapi
-from app import login_manager
+from app import login_manager, Pagination
 
 
 @app.route('/')
@@ -71,12 +71,12 @@ def profile():
     message = ""
     if request.method == 'POST':
         data = dict({
-            'name': current_user.user_name,
-            'surname': current_user.user_surname,
-            'login': current_user.user_email,
-            'password': current_user.user_password,
-            'old': current_user.user_old,
-            'work': current_user.user_work
+            'name': current_user.name,
+            'surname': current_user.surname,
+            'login': current_user.email,
+            'password': current_user.password,
+            'old': current_user.old,
+            'work': current_user.work
         })
 
         new_data = dict({
@@ -89,7 +89,7 @@ def profile():
             'work': form.work.data
         })
 
-        user = db.session.query(User).filter_by(user_id=current_user.user_id).one()
+        user = db.session.query(User).filter_by(id=current_user.id).one()
         if new_data['name'] and new_data['name'] != data['name']:
             data['name'] = new_data['name']
         if new_data['surname'] and new_data['surname'] != data['surname']:
@@ -103,12 +103,12 @@ def profile():
         if not User.check_password(data['password'], new_data['password']) and new_data['password'] == new_data['confirm_password']:
             data['password'] = User.hash_password(new_data['password'])
 
-        user.user_name = data['name']
-        user.user_surname = data['surname']
-        user.user_email = data['login']
-        user.user_password = data['password']
-        user.user_old = data['old']
-        user.user_work = data['work']
+        user.name = data['name']
+        user.surname = data['surname']
+        user.email = data['login']
+        user.password = data['password']
+        user.old = data['old']
+        user.work = data['work']
 
         try:
             db.session.add(user)
@@ -117,12 +117,12 @@ def profile():
             message = "Изменение данных в бд прошло с ошибкой!"
             print(e)
         else:
-            current_user.user_name = data['name']
-            current_user.user_surname = data['surname']
-            current_user.user_email = data['login']
-            current_user.user_password = data['password']
-            current_user.user_old = data['old']
-            current_user.user_work = data['work']
+            current_user.name = data['name']
+            current_user.surname = data['surname']
+            current_user.email = data['login']
+            current_user.password = data['password']
+            current_user.old = data['old']
+            current_user.work = data['work']
             return redirect(url_for('profile'))
 
     return render_template('profile.html', form=form, message=message)
@@ -137,12 +137,11 @@ def login():
     if request.method == 'POST':
         login = form.email.data
         try:
-            user = db.session.query(User).filter(User.user_email == login).first()
-            print(user.user_name)
+            user = db.session.query(User).filter(User.email == login).first()
         except Exception as e:
             message = "Пользователь не найден!"
         else:
-            if user.user_password is not None and User.check_password(user.user_password, form.password.data):
+            if user.password is not None and User.check_password(user.password, form.password.data):
                 login_user(user)
                 return redirect(url_for('index'))
             else:
@@ -151,12 +150,12 @@ def login():
 
 
 @login_manager.user_loader
-def load_user(user_id):
-    return db.session.query(User).get(user_id)
+def load_user(id):
+    return db.session.query(User).get(id)
 
 
 def does_user_exist(email):
-    user = db.session.query(User).filter(User.user_email == email).first()
+    user = db.session.query(User).filter(User.email == email).first()
     if user is None:
         return None
     else:
@@ -179,7 +178,7 @@ def registration():
         try:
             find_person = does_user_exist(data['email'])
             if find_person is None:
-                new_user = User(user_name=data['name'], user_surname=data['surname'], user_email=data['email'], user_password=data['password'], user_old=data['old'], user_work=data['work'], user_img='000.jpg')
+                new_user = User(name=data['name'], surname=data['surname'], email=data['email'], password=data['password'], old=data['old'], work=data['work'], img='000.jpg')
                 db.session.add(new_user)
                 db.session.commit()
             else:
@@ -202,50 +201,49 @@ def logout():
 
 @app.route('/admin-choice/', methods=['get', 'post'])
 def admin_choice():
-    if current_user.user_email != "admin@admin.ru" and current_user.user_password != "admin":
+    if current_user.email != "admin@admin.ru" and current_user.password != "admin":
         return redirect(url_for('registration'))
     select_form = SelectUserForm()
     list_data = list()
-    users = db.session.query(User).order_by(User.user_id).all()
+    users = db.session.query(User).order_by(User.id).all()
     for i in range(len(users)):
-        list_data.append((str(users[i].user_id), users[i].user_email))
+        list_data.append((str(users[i].id), users[i].email))
     select_form.id.default = ['3']
     select_form.id.choices = list_data
     if request.method == "POST":
-        print(int(select_form.id.data[0]))
-        user_id = int(select_form.id.data[0])
-        return redirect(url_for('admin', user_id=user_id))
+        id = int(select_form.id.data[0])
+        return redirect(url_for('admin', user_id=id))
     return render_template('admin_choice_form.html', select_form=select_form)
 
 
 @app.route('/admin/', methods=['get', 'post'])
 @login_required
 def admin():
-    if current_user.user_email != "admin@admin.ru" and current_user.user_password != "admin":
+    if current_user.email != "admin@admin.ru" and current_user.password != "admin":
         return redirect(url_for('registration'))
-    user_id = request.args.get('user_id')
+    id = request.args.get('user_id')
     form = ChangeUserForm()
     message = ""
     try:
-        user_response = db.session.query(User).filter(User.user_id == user_id).one()
+        user_response = db.session.query(User).filter(User.id == id).one()
     except Exception as e:
         print(e)
     else:
         user_info = User()
-        user_info.user_id = user_response.user_id
-        user_info.user_name = user_response.user_name
-        user_info.user_surname = user_response.user_surname
-        user_info.user_email = user_response.user_email
-        user_info.user_old = user_response.user_old
-        user_info.user_work = user_response.user_work
+        user_info.id = user_response.id
+        user_info.name = user_response.name
+        user_info.surname = user_response.surname
+        user_info.email = user_response.email
+        user_info.old = user_response.old
+        user_info.work = user_response.work
 
     if request.method == 'POST':
         data = dict({
-            'name': user_info.user_name,
-            'surname': user_info.user_surname,
-            'login': user_info.user_email,
-            'old': user_info.user_old,
-            'work': user_info.user_work
+            'name': user_info.name,
+            'surname': user_info.surname,
+            'login': user_info.email,
+            'old': user_info.old,
+            'work': user_info.work
         })
         new_data = dict({
             'name': form.name.data,
@@ -267,47 +265,173 @@ def admin():
             data['work'] = new_data['work']
 
         try:
-            update_query = db.session.query(User).filter(User.user_id == user_id).update({User.user_name: data['name'], User.user_surname: data['surname'], User.user_email: data['login'], User.user_old: data['old'], User.user_work: data['work']}, synchronize_session=False)
+            update_query = db.session.query(User).filter(User.id == id).update({User.name: data['name'], User.surname: data['surname'], User.email: data['login'], User.old: data['old'], User.work: data['work']}, synchronize_session=False)
             db.session.commit()
         except Exception as e:
             db.session.rollback()
             message = "Изменение данных в бд прошло с ошибкой!"
             print(e)
         else:
-            return redirect(url_for('admin', user_id=user_id))
+            return redirect(url_for('admin', user_id=id))
 
     return render_template('admin.html', form=form, message=message, data=user_info)
 
 
 @app.route('/news/', methods=['get', 'post'])
-def news():
-    news = News()
-    news.news_id = '1'
-    news.news_text = 'Hello world!'
-    news.news_title = 'Hello world!'
-    news.news_intro = 'Hello world!'
-    news.news_date = '12.03.2022'
-    news.news_author = 'Ildan'
-    return render_template('news.html', data=news)
+@app.route('/news/<int:page>', methods=['get', 'post'])
+def news(page=1):
+    news = list()
+    posts = str()
+
+    try:
+        posts = db.session.query(News, Category.name).join(Category).filter(News.title != None).order_by(News.date).paginate(page, app.config['POSTS_PER_PAGE'], False)
+    except Exception as err:
+        print(err)
+
+    return render_template('news.html', posts=posts)
 
 
-@app.route('/my-news/', methods=['get', 'post'])
-def my_news():
-    pass
+@app.route('/author/', methods=['get', 'post'])
+@app.route('/author/<author>/', methods=['get', 'post'])
+@app.route('/author/<author>', methods=['get', 'post'])
+@app.route('/author/<author>/<int:page>', methods=['get', 'post'])
+def user_news(author, page=1):
+    posts = str()
+
+    try:
+        posts = db.session.query(News, Category.name).join(Category).filter(News.author == author).filter(News.title != None).order_by(News.date).paginate(page, app.config['POSTS_PER_PAGE'], False)
+    except Exception as err:
+        print(err)
+
+    return render_template('news.html', posts=posts)
+
+
+@app.route('/category', methods=['get', 'post'])
+@app.route('/category/<category>', methods=['get', 'post'])
+@app.route('/category/<category>/', methods=['get', 'post'])
+@app.route('/category/<category>/<int:page>', methods=['get', 'post'])
+def category_news(category, page=1):
+    posts = list()
+
+    try:
+        posts = db.session.query(News, Category.name).join(Category).filter(News.title != None).filter(Category.name == category).order_by(News.date).paginate(page, app.config["POSTS_PER_PAGE"], False)
+    except Exception as err:
+        print(err)
+    else:
+        if not posts.items or len(posts.items) == 0:
+            redirect(url_for('news'))
+
+    return render_template('news.html', posts=posts)
 
 
 @app.route('/create-news/', methods = ['get', 'post'])
+@login_required
 def create_news():
     form = CreateNewsForm()
     post = News()
-    message = "Все ок!"
-    if request.method == 'POST' and  form.validate_on_submit():
-        data = dict({
-            title: form.title.data,
-            intro: form.intro.data,
-            text: form.titel.data,
-            author: current_user.user_name,
-            date: str(datetime.date()),
-        })
+    category_list = list()
+
+    try:
+        categories = db.session.query(Category).order_by(Category.id).all()
+        for category in categories:
+            category_list.append((str(category.id), category.name))
+        form.category.default = ['1']
+        form.category.choices = category_list
+    except Exception as err:
+        message = "Произошла ошибка!"
+        print(f'Ошибка: {err}')
+
+    if request.method == "POST":
+        image_url = str()
+        file_url = str()
+
+        post.user_id = current_user.id
+        post.title = form.title.data
+        post.intro = form.intro.data
+        post.text = form.text.data
+        post.category_id = int(form.category.data[0])
+        post.author = current_user.name
+        post.date = date.today()
+
+        if form.img.data:
+            image = form.img.data
+            image_url = os.path.join(app.config['UPLOADED_NEWS_PHOTO'], image.filename)
+            image.save(image_url)
+            post.img = f'/data/news_img/{image.filename}'
+        if form.file.data:
+            file = form.file.data
+            file_url = os.path.join(app.config['UPLOADED_NEWS_FILE'], file.filename)
+            file.save(file_url)
+            post.file = f'/data/news_files/{file.filename}'
+        else:
+            file_url = None
+
+        if post.title and post.title != None:
+            try:
+                db.session.add(post)
+                db.session.commit()
+            except Exception as err:
+                message = "Произошла ошибка!"
+                print(err)
+            else:
+                message = "Пост создан!"
 
     return render_template('create_news.html', form=form, message=message)
+
+
+@app.route('/select-change-post/', methods=['get', 'post'])
+@login_required
+def select_change_post():
+    if current_user.email != "admin@admin.ru" and current_user.password != "admin":
+        return redirect(url_for('index'))
+
+    form = SelectNewsForm()
+    posts = list()
+
+    try:
+        response = db.session.query(News).filter(News.title != None).order_by(News.date).all()
+        for post in response:
+            posts.append((str(post.id), post.title))
+        form.post.default = ['1']
+        form.post.choices = posts
+    except Exception as err:
+        print(err)
+    else:
+        if request.method == "POST":
+            post_id = int(form.post.data[0])
+            return redirect(url_for('change_news', post_id=str(post_id)))
+
+    return render_template('admin_choice_news_form.html', form=form)
+
+@app.route('/change-news/', methods = ['get', 'post' ])
+def change_news():
+    if current_user.email != "admin@admin.ru" and current_user.password != "admin":
+        return redirect(url_for('index'))
+    post_id = request.args.get('post_id')
+    form = ChangeNewsForm()
+    category_list = list()
+    try:
+        post = db.session.query(News, Category.name).join(Category).filter(News.title != None).filter(News.id == post_id).order_by(News.date).first()
+        categories = db.session.query(Category).order_by(Category.id).all()
+        for category in categories:
+            category_list.append((str(category.id), category.name))
+        form.category.default = ['1']
+        form.category.choices = category_list
+    except Exception as err:
+        print(err)
+    else:
+        if request.method == "POST":
+            new_category = int(form.category.data[0])
+
+            try:
+                update_query = db.session.query(News).filter(News.id == post_id).update(
+                    {News.category_id: new_category}, synchronize_session=False)
+                db.session.commit()
+            except Exception as err:
+                db.session.rollback()
+                print(err)
+            else:
+                return redirect(url_for('select_change_post'))
+
+    return render_template('change_news.html', post=post, form=form)
+

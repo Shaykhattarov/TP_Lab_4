@@ -21,3 +21,8 @@ class Config(object):
     YANDEX_API_IMG = f'static/data/pictures_api'
 
     RENDER_AS_BATCH = True
+
+    POSTS_PER_PAGE = 3
+
+    UPLOADED_NEWS_PHOTO = os.path.join(basedir, 'app/static/data/news_img')
+    UPLOADED_NEWS_FILE = os.path.join(basedir, 'app/static/data/news_files')

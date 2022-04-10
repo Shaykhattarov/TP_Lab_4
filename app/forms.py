@@ -39,12 +39,28 @@ class SelectUserForm(FlaskForm):
     id = SelectMultipleField(label=('ID'), validators=[Length(max=120000)])
     submit = SubmitField(label=('Выбрать пользователя'))
 
+
 class CreateNewsForm(FlaskForm):
     title = StringField(label=('Заголовок поста'), validators=[InputRequired(), DataRequired(), Length(min=6, max=255)])
     intro = StringField(label=('Вступительный текст поста'), validators=[InputRequired(), DataRequired(), Length(max=1000)])
-    img = FileField(label=('Изображение поста'), validators=[FileRequired(), FileAllowed(['jpg', 'png', 'jpeg'], 'Только изображения!')])
+    category = SelectMultipleField(label=('Категория'), validators=[InputRequired(), DataRequired()])
+    img = FileField(label=('Изображение поста'), validators=[FileAllowed(['jpg', 'png', 'jpeg'], 'Только изображения!')])
     text = TextAreaField(label=('Основная часть поста'), validators=[InputRequired(), DataRequired(), Length(min=10, max=5000)])
     author = StringField(label=('Автор поста'), validators=[InputRequired(), DataRequired(), Length(max=240)])
-    file = FileField(label=('Любой файл приложенный к посту'), validators=[FileRequired()])
+    file = FileField(label=('Любой файл приложенный к посту'), validators=[])
     date = StringField(label=('Дата создания поста'))
     submit = SubmitField(label=('Подтвердить изменения'))
+
+
+class SelectNewsForm(FlaskForm):
+    post = SelectMultipleField(label=('ID'), validators=[Length(max=120000)])
+    submit = SubmitField(label=('Выбрать пост'))
+
+
+class ChangeNewsForm(FlaskForm):
+    category = SelectMultipleField(label=('Изменить категорию'), validators=[])
+    submit = SubmitField(label=('Подтвердить изменения'))
+
+
+
+

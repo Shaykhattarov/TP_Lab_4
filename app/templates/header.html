@@ -23,8 +23,8 @@
                 </a>
                 <ul class="dropdown-menu text-small">
                     {% if current_user.is_authenticated: %}
-                    <li><a class="dropdown-item" href="/my-news/">Мои посты</a></li>
-                    <li><a class="dropdown-item" href="/create-news/">Создать пост</a></li>
+                    <li><a class="dropdown-item" href="/author/{{ current_user.name }}">Мои посты</a></li>
+                    <li><a class="dropdown-item" href="/create-news">Создать пост</a></li>
                     <li><a class="dropdown-item" href="/profile/">Личный кабинет</a></li>
                     <li>
                         <hr class="dropdown-divider">

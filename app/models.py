@@ -1,4 +1,5 @@
-import hashlib, uuid
+import hashlib
+import uuid
 
 from datetime import datetime as dt
 from flask_login import UserMixin
@@ -7,20 +8,21 @@ from app import db
 
 class User(db.Model, UserMixin):
     __tablename__ = "user"
-    user_id = db.Column(db.Integer, primary_key=True)
-    user_name = db.Column(db.String(300), nullable=False)
-    user_surname = db.Column(db.String(300), nullable=False)
-    user_email = db.Column(db.String(2025), nullable=False)
-    user_password = db.Column(db.String, nullable=False)
-    user_old = db.Column(db.Integer, nullable=False)
-    user_work = db.Column(db.String(300))
-    user_img = db.Column(db.String(2025))
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(300), nullable=True)
+    surname = db.Column(db.String(300), nullable=True)
+    email = db.Column(db.String(2025), nullable=True)
+    password = db.Column(db.String, nullable=True)
+    old = db.Column(db.Integer, nullable=True)
+    work = db.Column(db.String(300))
+    img = db.Column(db.String(2025))
 
     def __repr__(self):
-        return f'<user {self.user_id}> '
+        return f'<user {self.id}>'
 
     def get_id(self):
-        return self.user_id
+        return self.id
 
     @staticmethod
     def hash_password(password):
@@ -35,15 +37,25 @@ class User(db.Model, UserMixin):
 
 class News(db.Model, UserMixin):
     __tablename__ = "news"
-    news_id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.user_id'))
-    news_title = db.Column(db.String(255), nullable=True)
-    news_intro = db.Column(db.String(300), nullable=True)
-    news_text = db.Column(db.Text, nullable=True)
-    news_author = db.Column(db.String(300), nullable=True)
-    news_img = db.Column(db.String(2049), nullable=True)
-    news_date = db.Column(db.DateTime, default=dt.utcnow())
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    title = db.Column(db.String(255), nullable=True)
+    intro = db.Column(db.String(300), nullable=True)
+    text = db.Column(db.Text, nullable=True)
+    author = db.Column(db.String(300), nullable=True)
+    img = db.Column(db.String(10000), nullable=True)
+    file = db.Column(db.String(10000), nullable=True)
+    date = db.Column(db.DateTime, default=dt.utcnow())
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
 
     def __repr__(self):
-        return f'<news {self.news_id}>'
+        return f'<news {self.id}>'
 
+
+class Category(db.Model, UserMixin):
+    __tablename__ = "category"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.VARCHAR(2050), nullable=False)
+
+    def __repr__(self):
+        return f'<category {self.id}>'
