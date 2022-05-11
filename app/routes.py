@@ -1,13 +1,13 @@
 from datetime import date
 
-from flask import render_template, flash, redirect, request, url_for
+from flask import render_template, flash, redirect, request, url_for, jsonify, abort, make_response
 from flask_login import login_required, login_user, current_user, logout_user
 
-from app import app, db, os, json, requests
+from app import app, db, os, json
 from app.forms import LoginForm, CreateUserForm, ChangeUserForm, SelectUserForm, CreateNewsForm, ChangeNewsForm, SelectNewsForm
 from app.models import User, News, Category
 from app.yandex_api import YandexAPI as yapi
-from app import login_manager, Pagination
+from app import login_manager
 
 
 @app.route('/')
@@ -435,3 +435,70 @@ def change_news():
 
     return render_template('change_news.html', post=post, form=form)
 
+
+@app.route('/api/news', methods = ['GET'])
+def get_all_news():
+    domen = 'http://127.0.0.1:5000'
+    posts = list()
+    try:
+        posts = db.session.query(News, Category.name).join(Category).filter(News.title != None).order_by(
+            News.date).all()
+    except Exception as err:
+        print(err)
+        abort(404)
+    else:
+        news_list = list()
+        news_lis = list()
+        for post, category in posts:
+            news_list.append({
+                'title': post.title,
+                'intro': post.intro,
+                'text': post.text,
+                'author': post.author,
+                'img': f'{domen}/static{post.img}',
+                'file_url': f'{domen}/static{post.file}',
+                'date': post.date,
+                'category': category
+            })
+        if len(news_list) == 0:
+            abort(404)
+    return jsonify({ 'news' : news_list}), 200
+
+
+@app.route('/api/news/category/<string:category>')
+def get_category_news(category):
+    domen = 'http://127.0.0.1:5000'
+    posts = list()
+    try:
+        posts = db.session.query(News, Category.name).join(Category).filter(News.title != None).filter(
+            Category.name == category).order_by(News.date).all()
+    except Exception as err:
+        abort(404)
+    else:
+        news_list = list()
+        news_lis = list()
+        for post, category in posts:
+            news_list.append({
+                'title': post.title,
+                'intro': post.intro,
+                'text': post.text,
+                'author': post.author,
+                'img': f'{domen}/static{post.img}',
+                'file_url': f'{domen}/static{post.file}',
+                'date': post.date,
+                'category': category
+            })
+
+        if len(news_list) == 0:
+            abort(404)
+
+    return jsonify({'news': news_list})
+
+
+# Обработчик ошибок
+@app.errorhandler(404)
+def not_found(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Not Found!'}), 404
+    else:
+        return render_template('404.html'), 404

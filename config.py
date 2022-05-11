@@ -12,7 +12,7 @@ class Config(object):
                  'cFJ3t6ANG3s3zBzpFCbUoniAGtP8hbt74wqL8Qvaw+wgB8e/7hZeobeS+gdkVf1uAkuPalHJlp46XKRTA5ZqyE='
 
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-                              'sqlite:///' + os.path.join(basedir, 'app.db')
+                              'sqlite:///' + os.path.join(basedir, 'app.db') + '?charset=utf-8'
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -26,3 +26,5 @@ class Config(object):
 
     UPLOADED_NEWS_PHOTO = os.path.join(basedir, 'app/static/data/news_img')
     UPLOADED_NEWS_FILE = os.path.join(basedir, 'app/static/data/news_files')
+
+    JSON_AS_ASCII = False
