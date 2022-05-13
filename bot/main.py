@@ -1,13 +1,14 @@
+import os
 import time
-
-import requests
 import news
+
+from settings import Settings as config
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 
-bot_token = '5270273051:AAHvGr7nkDu3PAWDE6PK8_niYjvaxMotnlk'
+bot_token = config.TG_BOT_TOKEN
 
 bot = Bot(token=bot_token)
 dp = Dispatcher(bot)

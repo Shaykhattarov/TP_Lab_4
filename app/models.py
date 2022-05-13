@@ -59,3 +59,26 @@ class Category(db.Model, UserMixin):
 
     def __repr__(self):
         return f'<category {self.id}>'
+
+
+class UserAuthorizationLog(db.Model, UserMixin):
+    __tablename__ = 'user_authorization_log'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    username = db.Column(db.VARCHAR(2050), nullable=True)
+    date = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self):
+        return f'<UserRegistrationLog {self.id}>'
+
+
+class NewsCreatingLog(db.Model, UserMixin):
+    __tablename__ = 'news_creating_log'
+    id = db.Column(db.Integer, primary_key=True)
+    author_id = db.Column(db.Integer, db.ForeignKey('news.id'))
+    author_name = db.Column(db.String(2050), nullable=False)
+    news_title = db.Column(db.String(255), nullable=False)
+    date = db.Column(db.DateTime, nullable=False)
+
+    def __repr__(self):
+        return f'<NewsCreatingLog {self.id}>'

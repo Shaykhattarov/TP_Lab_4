@@ -1,11 +1,11 @@
 from datetime import date
-
+import datetime
 from flask import render_template, flash, redirect, request, url_for, jsonify, abort, make_response
 from flask_login import login_required, login_user, current_user, logout_user
 
 from app import app, db, os, json
 from app.forms import LoginForm, CreateUserForm, ChangeUserForm, SelectUserForm, CreateNewsForm, ChangeNewsForm, SelectNewsForm
-from app.models import User, News, Category
+from app.models import User, News, Category, UserAuthorizationLog, NewsCreatingLog
 from app.yandex_api import YandexAPI as yapi
 from app import login_manager
 
@@ -143,6 +143,13 @@ def login():
         else:
             if user.password is not None and User.check_password(user.password, form.password.data):
                 login_user(user)
+                date_now = datetime.datetime.now()
+                user_log = UserAuthorizationLog(user_id=user.id, username=user.name, date=date_now)
+                try:
+                    db.session.add(user_log)
+                    db.session.commit()
+                except Exception as err:
+                    print(err)
                 return redirect(url_for('index'))
             else:
                 return redirect(url_for('login'))
@@ -330,6 +337,7 @@ def create_news():
     form = CreateNewsForm()
     post = News()
     category_list = list()
+    message = ''
 
     try:
         categories = db.session.query(Category).order_by(Category.id).all()
@@ -375,6 +383,12 @@ def create_news():
                 print(err)
             else:
                 message = "Пост создан!"
+                news_log = NewsCreatingLog(author_id=post.user_id, author_name=post.author, news_title=post.title, date=datetime.datetime.now())
+                try:
+                    db.session.add(news_log)
+                    db.session.commit()
+                except Exception as err:
+                    print(err)
 
     return render_template('create_news.html', form=form, message=message)
 
